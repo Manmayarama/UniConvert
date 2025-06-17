@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-// Removed: import { FaFileUpload } from "react-icons/fa";
+import React, { useState } from "react";
 import axios from "axios";
 
 function Home() {
@@ -8,9 +7,7 @@ function Home() {
   const [downloadError, setDownloadError] = useState("");
   const [outputFormat, setOutputFormat] = useState("pdf");
   const [isLoading, setIsLoading] = useState(false);
-  const [backendStatus, setBackendStatus] = useState("Checking..."); // New state for backend status
 
-  // List of common output formats (you can expand this based on CloudConvert's support)
   const commonOutputFormats = [
     { value: "pdf", label: "PDF" },
     { value: "docx", label: "DOCX (Word)" },
@@ -23,39 +20,12 @@ function Home() {
     { value: "mp3", label: "MP3 (Audio)" }, 
     { value: "txt", label: "TXT (Text)" },
     { value: "html", label: "HTML" },
-    // Add more as needed, check CloudConvert's supported formats
   ];
 
-  // Define your backend's base URL
-  // In production, use the absolute URL of your deployed backend.
-  // In development, use your local backend URL.
   const BASE_BACKEND_URL =
     process.env.NODE_ENV === "production"
-      ? "https://uni-convert-drab.vercel.app" // YOUR DEPLOYED BACKEND URL
-      : "http://localhost:3000"; // Your local backend URL
-
-  // New useEffect to check backend health on component mount
-  useEffect(() => {
-    const checkBackendHealth = async () => {
-      try {
-        const response = await axios.get(`${BASE_BACKEND_URL}/api/health`);
-        if (response.status === 200) {
-          setBackendStatus("Online");
-        } else {
-          setBackendStatus("Offline or Error");
-        }
-      } catch (error) {
-        console.error("Error checking backend health:", error);
-        setBackendStatus("Offline or Error");
-      }
-    };
-
-    checkBackendHealth();
-    // You might want to re-check periodically if you want a truly "live" indicator
-    // const interval = setInterval(checkBackendHealth, 30000); // Check every 30 seconds
-    // return () => clearInterval(interval); // Clean up on unmount
-  }, []); // Empty dependency array means this runs once on mount
-
+      ? "https://uni-convert-drab.vercel.app" 
+      : "http://localhost:3000";
 
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0]);
@@ -63,7 +33,6 @@ function Home() {
     setDownloadError("");
   };
 
-  // Handler for output format change
   const handleOutputFormatChange = (e) => {
     setOutputFormat(e.target.value);
   };
@@ -76,30 +45,26 @@ function Home() {
       return;
     }
 
-    setIsLoading(true); // Set loading state
+    setIsLoading(true);
     setConvert("Converting file, please wait...");
     setDownloadError("");
 
     const formData = new FormData();
     formData.append("file", selectedFile);
-    // Append the selected output format
     formData.append("outputFormat", outputFormat);
 
     try {
-      // Use the constructed BASE_BACKEND_URL for the conversion endpoint
       const conversionUrl = `${BASE_BACKEND_URL}/convertFile`;
 
       const response = await axios.post(conversionUrl, formData, {
         responseType: "blob",
-        // Increased timeout significantly as conversions can take time
-        timeout: 300000, // 5 minutes
+        timeout: 600000,
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
 
-      // Determine the output filename based on the selected format
       const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, "");
       link.setAttribute("download", `${fileNameWithoutExt}.${outputFormat}`);
 
@@ -110,7 +75,7 @@ function Home() {
       setSelectedFile(null);
       setDownloadError("");
       setConvert("File Converted Successfully!");
-      setOutputFormat("pdf"); // Reset output format to default after success
+      setOutputFormat("pdf");
 
     } catch (error) {
       console.error("Error during file conversion:", error);
@@ -118,11 +83,7 @@ function Home() {
       let errorMessage = "An unknown error occurred. Please try again.";
 
       if (error.response) {
-        // Try to read error message from backend if available
-        // Note: For 'responseType: "blob"', error.response.data is a blob.
-        // Need to read it as text.
         try {
-          // Create a new Promise to handle FileReader's async nature
           await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = function () {
@@ -134,17 +95,16 @@ function Home() {
                 errorMessage = `Error occurred (Status: ${error.response.status}). Could not parse error details.`;
                 setDownloadError(errorMessage);
               }
-              resolve(); // Resolve after processing
+              resolve();
             };
             reader.onerror = function () {
               errorMessage = `Error occurred (Status: ${error.response.status}). Could not read error details.`;
               setDownloadError(errorMessage);
-              resolve(); // Resolve even on error
+              resolve();
             };
             reader.readAsText(error.response.data);
           });
         } catch (e) {
-          // Catch errors from the Promise itself (e.g., if reader.readAsText fails immediately)
           errorMessage = `Error occurred (Status: ${error.response.status}). Failed to process error response.`;
           setDownloadError(errorMessage);
         }
@@ -155,9 +115,9 @@ function Home() {
         errorMessage = `An unexpected client-side error occurred: ${error.message}`;
         setDownloadError(errorMessage);
       }
-      setConvert(""); // Clear any success message
+      setConvert("");
     } finally {
-      setIsLoading(false); // Clear loading state
+      setIsLoading(false);
     }
   };
 
@@ -174,25 +134,17 @@ function Home() {
               No software installation required, just upload and convert!
             </p>
 
-            {/* Display Backend Status */}
-            <div className="text-center mb-4 text-sm text-gray-500">
-              Backend Status: <span className={`font-semibold ${backendStatus === "Online" ? "text-green-600" : "text-red-600"}`}>{backendStatus}</span>
-            </div>
-
             <div className="flex flex-col items-center space-y-6">
-              {/* Hidden file input */}
               <input
                 type="file"
                 onChange={handleFileChange}
                 className="hidden"
                 id="FileInput"
               />
-              {/* Custom styled label for the file input */}
               <label
                 htmlFor="FileInput"
                 className="w-full flex items-center justify-center px-6 py-8 bg-blue-50 text-gray-700 rounded-lg shadow-md cursor-pointer border-blue-300 hover:bg-blue-100 hover:border-blue-500 duration-300 transform hover:scale-105"
               >
-                {/* Replaced FaFileUpload with inline SVG */}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 512 512"
@@ -208,7 +160,6 @@ function Home() {
                 </span>
               </label>
 
-              {/* New: Output Format Selector */}
               <div className="w-full text-center">
                 <label htmlFor="outputFormat" className="block text-xl font-semibold mb-2 text-gray-700">
                   Convert to:
@@ -227,16 +178,14 @@ function Home() {
                 </select>
               </div>
 
-              {/* Convert button */}
               <button
                 onClick={handleSubmit}
-                disabled={!selectedFile || isLoading} // Disable when no file or loading
+                disabled={!selectedFile || isLoading}
                 className="w-full sm:w-auto text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:pointer-events-none duration-300 font-bold px-8 py-3 rounded-lg text-xl shadow-lg transform hover:-translate-y-1"
               >
                 {isLoading ? "Converting..." : "Convert File"}
               </button>
 
-              {/* Display messages */}
               {convert && (
                 <div className="text-green-600 text-center font-medium text-lg mt-4">{convert}</div>
               )}
