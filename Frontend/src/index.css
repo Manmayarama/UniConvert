@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    /* Apply the gradient background */
+    background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
+    --tw-gradient-from: #dbeafe; /* blue-100 */
+    --tw-gradient-to: #fce7f3; /* pink-100 */
+    --tw-gradient-stops: var(--tw-gradient-from), #f3e8ff, var(--tw-gradient-to); /* via-purple-100 */
+    
+    /* Ensure the background covers the entire viewport */
+    min-height: 100vh; 
+    
+    /* Optional: If you want content to scroll over the fixed background */
+    /* background-attachment: fixed; */
+  }
+}
