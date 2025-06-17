@@ -1,13 +1,13 @@
 {
   "functions": {
-    "index.js": {
+    "api/index.js": { // <-- Updated path to reflect the new location
       "runtime": "@vercel/node@2.15.3"
     }
   },
   "routes": [
     {
       "src": "/convertFile",
-      "dest": "/index.js"
+      "dest": "/api/index.js" // <-- Updated destination to the new location
     }
   ]
 }
