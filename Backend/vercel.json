@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "index.js": {
+      "runtime": "@vercel/node@2.15.3"
+    }
+  },
+  "routes": [
+    {
+      "src": "/convertFile",
+      "dest": "/index.js"
+    }
+  ]
+}
