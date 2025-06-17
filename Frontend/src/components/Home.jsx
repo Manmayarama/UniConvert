@@ -1,15 +1,14 @@
-import React, { useState } from "react";
-import { FaFileUpload } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+// Removed: import { FaFileUpload } from "react-icons/fa";
 import axios from "axios";
 
 function Home() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [convert, setConvert] = useState("");
   const [downloadError, setDownloadError] = useState("");
-  // New state for selected output format, default to 'pdf'
   const [outputFormat, setOutputFormat] = useState("pdf");
-  // State for loading indicator
   const [isLoading, setIsLoading] = useState(false);
+  const [backendStatus, setBackendStatus] = useState("Checking..."); // New state for backend status
 
   // List of common output formats (you can expand this based on CloudConvert's support)
   const commonOutputFormats = [
@@ -20,12 +19,43 @@ function Home() {
     { value: "jpg", label: "JPG (Image)" },
     { value: "png", label: "PNG (Image)" },
     { value: "webp", label: "WebP (Image)" },
-    { value: "mp4", label: "MP4 (Video)" }, // Be cautious with video, can be very slow/expensive
-    { value: "mp3", label: "MP3 (Audio)" }, // Be cautious with audio
+    { value: "mp4", label: "MP4 (Video)" }, 
+    { value: "mp3", label: "MP3 (Audio)" }, 
     { value: "txt", label: "TXT (Text)" },
     { value: "html", label: "HTML" },
     // Add more as needed, check CloudConvert's supported formats
   ];
+
+  // Define your backend's base URL
+  // In production, use the absolute URL of your deployed backend.
+  // In development, use your local backend URL.
+  const BASE_BACKEND_URL =
+    process.env.NODE_ENV === "production"
+      ? "https://uni-convert-drab.vercel.app" // YOUR DEPLOYED BACKEND URL
+      : "http://localhost:3000"; // Your local backend URL
+
+  // New useEffect to check backend health on component mount
+  useEffect(() => {
+    const checkBackendHealth = async () => {
+      try {
+        const response = await axios.get(`${BASE_BACKEND_URL}/api/health`);
+        if (response.status === 200) {
+          setBackendStatus("Online");
+        } else {
+          setBackendStatus("Offline or Error");
+        }
+      } catch (error) {
+        console.error("Error checking backend health:", error);
+        setBackendStatus("Offline or Error");
+      }
+    };
+
+    checkBackendHealth();
+    // You might want to re-check periodically if you want a truly "live" indicator
+    // const interval = setInterval(checkBackendHealth, 30000); // Check every 30 seconds
+    // return () => clearInterval(interval); // Clean up on unmount
+  }, []); // Empty dependency array means this runs once on mount
+
 
   const handleFileChange = (e) => {
     setSelectedFile(e.target.files[0]);
@@ -56,12 +86,10 @@ function Home() {
     formData.append("outputFormat", outputFormat);
 
     try {
-      const backendUrl =
-        process.env.NODE_ENV === "production"
-          ? "/api/convertFile"
-          : "http://localhost:3000/convertFile";
+      // Use the constructed BASE_BACKEND_URL for the conversion endpoint
+      const conversionUrl = `${BASE_BACKEND_URL}/convertFile`;
 
-      const response = await axios.post(backendUrl, formData, {
+      const response = await axios.post(conversionUrl, formData, {
         responseType: "blob",
         // Increased timeout significantly as conversions can take time
         timeout: 300000, // 5 minutes
@@ -94,19 +122,30 @@ function Home() {
         // Note: For 'responseType: "blob"', error.response.data is a blob.
         // Need to read it as text.
         try {
-          const reader = new FileReader();
-          reader.onload = function () {
-            const errorData = JSON.parse(reader.result);
-            errorMessage = `Error: ${errorData.message || 'Unknown server error.'}`;
-            setDownloadError(errorMessage);
-          };
-          reader.onerror = function () {
-            errorMessage = `Error occurred (Status: ${error.response.status}). Could not read error details.`;
-            setDownloadError(errorMessage);
-          };
-          reader.readAsText(error.response.data);
+          // Create a new Promise to handle FileReader's async nature
+          await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = function () {
+              try {
+                const errorData = JSON.parse(reader.result);
+                errorMessage = `Error: ${errorData.message || 'Unknown server error.'}`;
+                setDownloadError(errorMessage);
+              } catch (e) {
+                errorMessage = `Error occurred (Status: ${error.response.status}). Could not parse error details.`;
+                setDownloadError(errorMessage);
+              }
+              resolve(); // Resolve after processing
+            };
+            reader.onerror = function () {
+              errorMessage = `Error occurred (Status: ${error.response.status}). Could not read error details.`;
+              setDownloadError(errorMessage);
+              resolve(); // Resolve even on error
+            };
+            reader.readAsText(error.response.data);
+          });
         } catch (e) {
-          errorMessage = `Error occurred (Status: ${error.response.status}).`;
+          // Catch errors from the Promise itself (e.g., if reader.readAsText fails immediately)
+          errorMessage = `Error occurred (Status: ${error.response.status}). Failed to process error response.`;
           setDownloadError(errorMessage);
         }
       } else if (error.request) {
@@ -135,6 +174,11 @@ function Home() {
               No software installation required, just upload and convert!
             </p>
 
+            {/* Display Backend Status */}
+            <div className="text-center mb-4 text-sm text-gray-500">
+              Backend Status: <span className={`font-semibold ${backendStatus === "Online" ? "text-green-600" : "text-red-600"}`}>{backendStatus}</span>
+            </div>
+
             <div className="flex flex-col items-center space-y-6">
               {/* Hidden file input */}
               <input
@@ -148,7 +192,17 @@ function Home() {
                 htmlFor="FileInput"
                 className="w-full flex items-center justify-center px-6 py-8 bg-blue-50 text-gray-700 rounded-lg shadow-md cursor-pointer border-blue-300 hover:bg-blue-100 hover:border-blue-500 duration-300 transform hover:scale-105"
               >
-                <FaFileUpload className="text-4xl mr-4 text-blue-600" />
+                {/* Replaced FaFileUpload with inline SVG */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 512 512"
+                  className="text-4xl mr-4 text-blue-600 w-10 h-10"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M288 109.3V352c0 17.7-14.3 32-32 32s-32-14.3-32-32V109.3L135.4 206.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l160-160c12.5-12.5 32.8-12.5 45.3 0l160 160c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L288 109.3zM448 416H64c-35.3 0-64 28.7-64 64s28.7 64 64 64H448c35.3 0 64-28.7 64-64s-28.7-64-64-64z"
+                  />
+                </svg>
                 <span className="text-2xl font-semibold text-center">
                   {selectedFile ? selectedFile.name : "Choose or Drag File Here"}
                 </span>
